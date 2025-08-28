@@ -3,6 +3,6 @@
 wasm-bindgen \
     --out-dir . \
     --out-name game \
-    --target web \
+    --target no-modules \
     --no-typescript \
     ~/src/manytris/target/wasm32-unknown-unknown/debug/manytris.wasm

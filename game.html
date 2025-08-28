@@ -220,7 +220,6 @@ your-repo/<br>
                         // Load the game module
                         const script = document.createElement('script');
                         script.src = 'game.js';
-                        script.type = 'module';
                         
                         script.onload = () => {
                             updateStatus('WASM game loaded successfully!');
@@ -286,8 +285,7 @@ your-repo/<br>
             // This function will be called when your actual WASM game loads
             // Replace this with your game's initialization code
             updateStatus('Game initialized and ready to play!');
-            import wasm_bindgen from './game.js';
-            await wasm_bindgen({module_or_path: "./game_bg.wasm"}).catch(error => {
+            wasm_bindgen({module_or_path: "./game_bg.wasm"}).catch(error => {
                 if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
                     throw error;
                 }
