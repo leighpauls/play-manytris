@@ -220,6 +220,8 @@ your-repo/<br>
                         // Load the game module
                         const script = document.createElement('script');
                         script.src = 'game.js';
+                        script.type = 'module';
+                        
                         script.onload = () => {
                             updateStatus('WASM game loaded successfully!');
                             initializeGame();
