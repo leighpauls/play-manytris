@@ -1,0 +1,28 @@
+# GitHub Pages configuration for WASM games
+plugins:
+  - jekyll-optional-front-matter
+
+# Include all files (including .wasm)
+include:
+  - "*.wasm"
+  - "*.js"
+  - "*.html"
+  - "*.css"
+  - ".htaccess"
+
+# Exclude unnecessary files
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+
+# MIME type configuration
+plugins:
+  - jekyll-optional-front-matter
+
+# Ensure proper serving of WASM files
+defaults:
+  - scope:
+      path: "*.wasm"
+    values:
+      sitemap: false

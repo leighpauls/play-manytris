@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAssembly Game</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+            font-weight: 600;
+        }
+        
+        .game-container {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin: 20px 0;
+            border: 1px solid #333;
+        }
+        
+        canvas {
+            border: 2px solid #444;
+            border-radius: 8px;
+            max-width: 100%;
+            height: auto;
+            background: #000;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 12px;
+            border-radius: 6px;
+            background: #333;
+            border: 1px solid #555;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #555;
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: left;
+            border: 1px solid #333;
+        }
+        
+        .instructions h3 {
+            color: #fff;
+            margin-top: 0;
+        }
+        
+        .instructions code {
+            background: #1a1a1a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            color: #00ff88;
+        }
+        
+        .file-structure {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            text-align: left;
+            margin: 20px 0;
+            border: 1px solid #333;
+        }
+        
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 WebAssembly Game</h1>
+        
+        <div class="game-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            
+            <div class="controls">
+                <button class="btn" id="startBtn" onclick="startGame()">Start Game</button>
+                <button class="btn" id="pauseBtn" onclick="pauseGame()" disabled>Pause</button>
+                <button class="btn" id="resetBtn" onclick="resetGame()" disabled>Reset</button>
+                <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+            </div>
+            
+            <div class="status" id="status">
+                Ready to load game. Place your WASM files in the repository.
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>🚀 How to Deploy Your WASM Game:</h3>
+            
+            <div class="file-structure">
+your-repo/<br>
+├── game.html          # This game page<br>
+├── game.wasm          # Your WebAssembly binary<br>
+├── game.js            # JavaScript loader/glue code<br>
+├── assets/            # Game assets<br>
+│   ├── textures/<br>
+│   ├── sounds/<br>
+│   └── data/<br>
+└── .htaccess          # WASM MIME types
+            </div>
+            
+            <ol>
+                <li><strong>Add your WASM files:</strong> Upload <code>game.wasm</code> and <code>game.js</code> to your repository</li>
+                <li><strong>Update the loader:</strong> Modify the JavaScript below to match your game's entry point</li>
+                <li><strong>Add assets:</strong> Upload textures, sounds, and other game files to the <code>assets/</code> folder</li>
+                <li><strong>Test locally:</strong> The game will automatically load when you visit this page</li>
+            </ol>
+            
+            <p><strong>Supported WASM frameworks:</strong> Emscripten, Unity WebGL, Godot, Rust (wasm-pack), AssemblyScript</p>
+        </div>
+    </div>
+
+    <script>
+        let gameModule = null;
+        let gameRunning = false;
+        let gamePaused = false;
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        // Demo game rendering (replace with your WASM game)
+        let animationId;
+        let gameTime = 0;
+        
+        function updateStatus(message, isLoading = false) {
+            status.innerHTML = isLoading ? 
+                `<span class="loading"></span> ${message}` : 
+                message;
+        }
+        
+        async function loadWasmGame() {
+            try {
+                updateStatus('Loading WebAssembly game...', true);
+                
+                // Try to load your WASM game
+                // Replace 'game.js' with your actual JavaScript loader
+                if (typeof importScripts === 'undefined') {
+                    // Check if game.js exists
+                    const response = await fetch('game.js');
+                    if (response.ok) {
+                        // Load the game module
+                        const script = document.createElement('script');
+                        script.src = 'game.js';
+                        script.onload = () => {
+                            updateStatus('WASM game loaded successfully!');
+                            initializeGame();
+                        };
+                        script.onerror = () => {
+                            showDemoGame();
+                        };
+                        document.head.appendChild(script);
+                    } else {
+                        showDemoGame();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load WASM game:', error);
+                showDemoGame();
+            }
+        }
+        
+        function showDemoGame() {
+            updateStatus('Demo mode: Add your game.wasm and game.js files to load your actual game');
+            // Show a simple demo animation
+            startDemoGame();
+        }
+        
+        function startDemoGame() {
+            gameRunning = true;
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            resetBtn.disabled = false;
+            
+            function animate() {
+                if (!gameRunning || gamePaused) return;
+                
+                gameTime += 0.016; // ~60fps
+                
+                // Clear canvas
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw demo content
+                ctx.fillStyle = '#007bff';
+                const x = (Math.sin(gameTime) * 200) + canvas.width / 2;
+                const y = (Math.cos(gameTime * 0.7) * 150) + canvas.height / 2;
+                ctx.fillRect(x - 25, y - 25, 50, 50);
+                
+                // Draw text
+                ctx.fillStyle = '#fff';
+                ctx.font = '24px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('Demo Game - Replace with your WASM game', canvas.width / 2, 50);
+                
+                ctx.font = '16px Inter';
+                ctx.fillText('Add game.wasm and game.js to your repository', canvas.width / 2, canvas.height - 30);
+                
+                animationId = requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+        
+        function initializeGame() {
+            // This function will be called when your actual WASM game loads
+            // Replace this with your game's initialization code
+            updateStatus('Game initialized and ready to play!');
+        }
+        
+        function startGame() {
+            if (!gameRunning) {
+                loadWasmGame();
+            }
+        }
+        
+        function pauseGame() {
+            gamePaused = !gamePaused;
+            pauseBtn.textContent = gamePaused ? 'Resume' : 'Pause';
+            
+            if (!gamePaused && gameRunning) {
+                startDemoGame();
+            }
+        }
+        
+        function resetGame() {
+            gameRunning = false;
+            gamePaused = false;
+            gameTime = 0;
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Reset buttons
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            resetBtn.disabled = true;
+            pauseBtn.textContent = 'Pause';
+            
+            updateStatus('Game reset. Click Start to play again.');
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                canvas.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    if (gameRunning) {
+                        pauseGame();
+                    } else {
+                        startGame();
+                    }
+                    break;
+                case 'KeyR':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        resetGame();
+                    }
+                    break;
+                case 'F11':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+            }
+        });
+        
+        // Initialize
+        updateStatus('Ready to load game. Click Start or add your WASM files.');
+    </script>
+</body>
+</html>
